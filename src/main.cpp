@@ -4,6 +4,47 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SH110X.h>
 
+// happy birthday frequency
+#define NOTE_G4  392
+#define NOTE_A4  440
+#define NOTE_B4  494
+#define NOTE_C5  523
+#define NOTE_D5  587
+#define NOTE_E5  659
+#define NOTE_F5  698
+#define NOTE_G5  784
+
+// Melody and note durations
+int melody[] = {
+  NOTE_G4, NOTE_G4, NOTE_A4, NOTE_G4, NOTE_C5, NOTE_B4,  // Line 1
+  NOTE_G4, NOTE_G4, NOTE_A4, NOTE_G4, NOTE_D5, NOTE_C5,  // Line 2
+  NOTE_G4, NOTE_G4, NOTE_G5, NOTE_E5, NOTE_C5, NOTE_B4, NOTE_A4, // Line 3
+  NOTE_F5, NOTE_F5, NOTE_E5, NOTE_C5, NOTE_D5, NOTE_C5   // Line 4
+};
+
+int durations[] = {
+  500, 500, 500, 500, 500, 1000,  // Line 1
+  500, 500, 500, 500, 500, 1000,  // Line 2
+  500, 500, 500, 500, 500, 500, 1000,  // Line 3
+  500, 500, 500, 500, 500, 1000   // Line 4
+};
+
+// Lyrics for each line
+String words[] = {
+  "HAPPY", "BIRTHDAY", "TO", "YOU", 
+  "HAPPY", "BIRTHDAY", "TO", "YOU", 
+  "HAPPY", "BIRTHDAY", "DEAR", "MARPHY", 
+  "HAPPY", "BIRTHDAY", "TO", "YOU"
+};
+
+// Number of notes each word spans
+int notesPerWord[] = {
+  2, 2, 1, 1, // Line 1
+  2, 2, 1, 1, // Line 2
+  2, 2, 1, 2, // Line 3
+  2, 2, 1, 1  // Line 4
+};
+
 /* Uncomment the initialize the I2C address , uncomment only one, If you get a totally blank screen try the other*/
 #define i2c_Address 0x3c //initialize with the I2C addr 0x3C Typically eBay OLED's
 //#define i2c_Address 0x3d //initialize with the I2C addr 0x3D Typically Adafruit OLED's
@@ -41,12 +82,12 @@ static const unsigned char PROGMEM logo16_glcd_bmp[] =
   B00000000, B00110000
 };
 
-int textSize = 1;
+int text_size = 1;
 
 #define CHAR_WIDTH 6
 #define CHAR_HEIGHT 8
-#define CHAR CHAR_WIDTH*textSize
-#define LINE CHAR_HEIGHT*textSize
+#define CHAR CHAR_WIDTH*text_size
+#define LINE CHAR_HEIGHT*text_size
 #define SEC 1000
 
 #define btn 2
@@ -73,102 +114,39 @@ void setup() {
 
   pinMode(btn, INPUT);
   pinMode(buzzer, OUTPUT);
-
-  tone(buzzer, 300);
-  delay(150);
-  tone(buzzer, 400);
-  delay(200);
-  tone(buzzer, 500);
-  delay(250);
-  tone(buzzer, 600);
-  
-  noTone(buzzer);
 }
 
 void loop() {
-  value = digitalRead(btn);
-  if(value == HIGH) {
-    tone(buzzer, 1000);
-    delay(150);
-    noTone(buzzer);
+  // Play the melody
+  text_size = 2;
+  int wordIndex = 0;
+  int noteCount = 0;
 
-    count++;
-  }
-
-  textSize = 2;
-  display.setTextSize(textSize);
-  display.setTextColor(SH110X_WHITE);
-
-  display.setCursor(0, 1*LINE);
-  display.print("Marphy Bot");
-  
-  display.setTextColor(SH110X_BLACK, SH110X_WHITE);
-  display.setCursor(0, 2*LINE);
-  display.print("COUNT");
-
-  display.setTextColor(SH110X_WHITE);
-  display.setCursor(screen_width - 5/2*CHAR, 2*LINE);
-  display.print(count);
-  display.display();
-  delay(100);
-  display.clearDisplay();
-
-  if(count >= 10){
-    display.setCursor(screen_width/2 - CHAR*3/2, screen_height/2);
-    display.println("K/O");
-    display.display();
-    tone(buzzer, 1000);
-    delay(300);
-    tone(buzzer, 700);
-    delay(400);    
-    
-    display.clearDisplay();
-    display.setCursor(screen_width/2 - CHAR*5/2, 1*LINE);
-    display.print("MARHY");
-    display.setCursor(screen_width/2 - CHAR*5/2, 2*LINE);
-    display.print("LOSER");
-    display.display();
-    tone(buzzer, 300);
-    delay(800);
-    noTone(buzzer);
-    display.clearDisplay();
-    delay(2000);
-
-    display.setCursor(screen_width/2 - CHAR*5/2, 1*LINE);
-    display.print("HUMAM");
-    display.setCursor(screen_width/2 - CHAR*5/2, 2*LINE);
-    display.print("WINS!");
-    display.display();
-    tone(buzzer, 500);
-    delay(300);
-    tone(buzzer, 600);
-    delay(300);
-    tone(buzzer, 700);
-    delay(300);
-    tone(buzzer, 800);
-    delay(300);
-    tone(buzzer, 1000);
-    delay(300);
-    noTone(buzzer);
-    display.clearDisplay();
-    delay(2000);
-
-    // restarting the game
-    count = 0;
-    display.setCursor(0, 0);
-    display.print("Restarting...");
-    display.display();
-    delay(100);
-    for(int i=3; i>0; i--){
-      display.print(i);
-      display.print(" ");
+  // Play the melody and display synchronized words
+  for (int i = 0; i < sizeof(melody) / sizeof(melody[0]); i++) {
+    // Display the current word if it's the first note for that word
+    if (noteCount == 0) {
+      display.clearDisplay();
+      display.setTextSize(text_size);
+      display.setTextColor(SH110X_WHITE);
+      display.setCursor(screen_width/2 - (words[wordIndex].length() * CHAR)/2, 1*LINE);
+      display.print(words[wordIndex]); // Display the current word
       display.display();
-      tone(buzzer, 500);
-      delay(150);
-      noTone(buzzer);
-      delay(850);
     }
-    delay(1000);
-    display.clearDisplay();
+
+    // Play the note
+    int noteDuration = durations[i];
+    tone(buzzer, melody[i], noteDuration);
+    delay(noteDuration * 1.3);
+    noTone(buzzer);
+
+    // Update note count and check if we need to move to the next word
+    noteCount++;
+    if (noteCount >= notesPerWord[wordIndex]) {
+      noteCount = 0;
+      wordIndex++;
+    }
   }
+
+  delay(5000); // Wait 5 seconds before replaying the song
 }
