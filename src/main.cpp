@@ -50,12 +50,35 @@ int text_size = 1;
 #define SEC 1000
 
 #define btn 2
-#define buzzer 4
 
 int screen_width;
 int screen_height;
 int value;
-int count = 0;
+int sample_count = 0;
+int delay_time = 500;
+
+// dsm501a
+#define pin2_1um 7
+#define pin4_25um 8
+#define sample_time 5000
+
+float calc_low_ratio(float lowPulse) {
+  return lowPulse / sample_time * 100.0;  // low ratio in %
+}
+
+float calc_c_mgm3(float lowPulse) {
+  float r = calc_low_ratio(lowPulse);
+  float c_mgm3 = 0.00258425 * pow(r, 2) + 0.0858521 * r - 0.01345549;
+  return max(0, c_mgm3);
+}
+
+float calc_c_pcs283ml(float lowPulse) {
+  float r = calc_low_ratio(lowPulse);
+  float c_pcs283ml =  625 * r;
+  return min(c_pcs283ml, 12500);
+}
+
+unsigned long init_time;
 
 void setup() {
   Serial.begin(9600);
@@ -71,22 +94,72 @@ void setup() {
   screen_width = display.width();
   screen_height = display.height();
 
+  text_size = 2;
+  display.setTextSize(text_size);
+  display.setTextColor(SH110X_WHITE);
+  display.setCursor(0, 0);
+  display.println("HUMAM");
+  display.display();
+
+  pinMode(LED_BUILTIN, OUTPUT);
   pinMode(btn, INPUT);
-  pinMode(buzzer, OUTPUT);
+  pinMode(pin2_1um, INPUT);
+  pinMode(pin4_25um, INPUT);
+
+  init_time = millis();
+  // delay(60*SEC);
 }
 
 void loop() {
-  value = digitalRead(btn);
+  // digitalWrite(LED_BUILTIN, HIGH);
+  // delay(100);
+  // digitalWrite(LED_BUILTIN, LOW);
+  // delay(100);
 
-  if(value == HIGH){
-    count++;
+  static unsigned long t_start = millis();
+  static float lowPM25, lowPM1 = 0;
+
+  lowPM25 += pulseIn(pin4_25um, LOW) / 1000.0;
+  lowPM1 += pulseIn(pin2_1um, LOW) / 1000.0;
+  sample_count++;
+
+  if ((millis() - t_start) >= sample_time) {
+    Serial.print("t:");
+    Serial.print((millis() - t_start)/1000.0);
+    Serial.print(" ");
+
+    Serial.print("samples:");
+    Serial.print(sample_count);
+    Serial.print(" ");
+
+    Serial.print("r_2.5um:");
+    Serial.print(calc_low_ratio(lowPM25));
+    Serial.print(" ");
+    Serial.print("mgm3_2.5um:");
+    Serial.print(calc_c_mgm3(lowPM25));
+    Serial.print(" ");
+    Serial.print("pcs_2.5um:");
+    Serial.print(calc_c_pcs283ml(lowPM25));
+    Serial.print(" ");
+
+    Serial.print("r_1um:");
+    Serial.print(calc_low_ratio(lowPM1));
+    Serial.print(" ");
+    Serial.print("mgm3_1um:");
+    Serial.print(calc_c_mgm3(lowPM1));
+    Serial.print(" ");
+    Serial.print("pcs_1um:");
+    Serial.print(calc_c_pcs283ml(lowPM1));
+    Serial.print(" ");
+
+    Serial.println();
+
+    // reset
+    lowPM25 = 0;
+    lowPM1 = 0;
+    sample_count = 0;
+    t_start = millis();
   }
-
-  Serial.print("btn:");
-  Serial.print(value);
-  Serial.print(" ");
-  Serial.print("count:");
-  Serial.print(count);
-  Serial.println();
-  delay(100); // Wait 5 seconds before replaying the song
 }
+
+
